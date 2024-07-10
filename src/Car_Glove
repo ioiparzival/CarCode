@@ -9,14 +9,31 @@
 */
 
 
+//пины логической схемы для управления драйвером двигателей
+#define ena1 14
+#define in11 26
+#define in21 27
+
+#define enb1 32
+#define in31 13
+#define in41 33
+
+#define ena2 5
+#define in12 18
+#define in22 19
+
+#define enb2 23
+#define in32 22
+#define in42 12
+
 #include <WiFi.h>
 
 const char* ssid = "CAR_WIFI";
 const char* password = "12345678";
 
-int motorPin0[4] = { 22, 18, 25, 26 };
-int motorPin1[4] = { 12, 19, 33, 27 };
-int enablePin[4] = { 23, 5, 32, 14 };
+int motorPin0[4] = { in32, in12, in31, in11 };
+int motorPin1[4] = { in42, in22, in41, in21 };
+int enablePin[4] = { enb2, ena2, enb1, ena1 };
 
 WiFiServer server(80);
 WiFiClient client;
@@ -69,15 +86,26 @@ void setup() {
 void loop() {
   client = server.available();  // Узнаем если куда подключится
   Serial.print(client);
-
   if (client) {
     Serial.println("New Client.");
     String currentLine = "";
     while (client.connected()) {
-      if (client.available()) Data_Processing();  // Если есть связь с перчаткой то переходим в функцию расшифровки данных
+      if (client.available()){
+        Data_Processing();  // Если есть связь с перчаткой то переходим в функцию расшифровки данных
+      }
+      else{                 // Проверка на потерю соединения для дальнейшей перезагрузки
+        int time = millis();
+        while(!client.available()){
+          Serial.print("disconnected for");
+          Serial.println(millis() - time);
+          if(millis() - time > 2000){
+            Serial.print("is restarted");
+            ESP.restart();
+          }
+        }+
+      }
     }
   }
-
   client.stop();
   Serial.println("Client disconnected.");
   Serial.println("");
@@ -103,7 +131,6 @@ void Data_Processing()  // Расшифровуем данные с перчат
           if (c == 'B') motor = 1;
           if (c == 'C') motor = 2;
           if (c == 'D') motor = 3;
-
           motor_write(motor, tmp);
           break;
         }
